@@ -218,9 +218,9 @@ Example ride booking request:
 - Current recommendation logic can run in `MOCK` mode for demos.
 
 ## Architecture
-
-High-level flow:
-
+![Architecture Image](./assets/img/architecture.png)
+<!-- High-level flow: -->
+<!-- 
 ```text
 Frontend (Next.js)
     |
@@ -235,7 +235,7 @@ Carbon, ride, reward, analytics, distance services
     | SQLAlchemy async ORM
     v
 PostgreSQL
-```
+``` -->
 
 Backend structure:
 
