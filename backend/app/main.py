@@ -4,6 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import analytics, auth, carbon, meta, rewards, rides
 from app.core.config import settings
 
+from app.routers import prediction, recommendation
+
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
@@ -18,12 +20,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(auth.router, prefix="/api")
-app.include_router(carbon.router, prefix="/api")
-app.include_router(meta.router, prefix="/api")
-app.include_router(rides.router, prefix="/api")
-app.include_router(analytics.router, prefix="/api")
-app.include_router(rewards.router, prefix="/api")
+API_PREFIX = "/api/v1"
+app.include_router(auth.router, prefix=API_PREFIX)
+app.include_router(carbon.router, prefix=API_PREFIX)
+app.include_router(meta.router, prefix=API_PREFIX)
+app.include_router(rides.router, prefix=API_PREFIX)
+app.include_router(analytics.router, prefix=API_PREFIX)
+app.include_router(rewards.router, prefix=API_PREFIX)
+# AI feature routes (Sections 11 & 12).
+app.include_router(prediction.router, prefix=API_PREFIX)
+app.include_router(recommendation.router, prefix=API_PREFIX)
 
 
 @app.get("/")
