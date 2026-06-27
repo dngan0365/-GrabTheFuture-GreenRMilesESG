@@ -17,12 +17,18 @@ import type { EmissionPoint, ForecastPoint } from "@/types";
 
 const AXIS = { fontSize: 12, fill: "#94a3b8" };
 
-const shortLabel = (label: string) => (label.length > 7 ? label.slice(5) : label);
+/**
+ * Compact a chart axis label. ISO date labels (`YYYY-MM-DD`) are shortened to
+ * `MM-DD` to keep the axis tidy; any other label (e.g. department names like
+ * "Engineering") is left untouched so it is never clipped.
+ */
+const shortLabel = (label: string) =>
+  /^\d{4}-\d{2}-\d{2}$/.test(label) ? label.slice(5) : label;
 
 /** Grouped bars comparing baseline vs actual vs saved CO₂ per period. */
 export function EmissionBarChart({ data }: { data: EmissionPoint[] }) {
   const rows = data.map((d) => ({
-    label: d.label.length > 7 ? d.label.slice(5) : d.label,
+    label: shortLabel(d.label),
     actual: d.actualCo2Kg,
     saved: d.savedCo2Kg,
   }));
@@ -52,7 +58,7 @@ export function EmissionBarChart({ data }: { data: EmissionPoint[] }) {
 /** Single-series saved-CO₂ bars (used on dashboards). */
 export function SavedCo2Chart({ data }: { data: EmissionPoint[] }) {
   const rows = data.map((d) => ({
-    label: d.label.length > 7 ? d.label.slice(5) : d.label,
+    label: shortLabel(d.label),
     saved: d.savedCo2Kg,
   }));
   return (
