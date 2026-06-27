@@ -4,3 +4,4 @@ sqlalchemy
 psycopg2-binary
 alembic
 python-dotenv
+numpy==2.1.3
