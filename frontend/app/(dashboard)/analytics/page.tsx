@@ -9,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
   CenteredSpinner,
+  ErrorState,
   PageHeading,
   Select,
   Table,
@@ -55,8 +56,10 @@ export default function AnalyticsPage() {
           <CardTitle>Actual vs saved CO₂</CardTitle>
         </CardHeader>
         <CardBody>
-          {analytics.loading || !analytics.data ? (
+          {analytics.loading ? (
             <CenteredSpinner />
+          ) : analytics.error || !analytics.data ? (
+            <ErrorState message={analytics.error} />
           ) : (
             <EmissionBarChart data={analytics.data.items} />
           )}
@@ -99,8 +102,10 @@ export default function AnalyticsPage() {
             </CardTitle>
           </CardHeader>
           <CardBody>
-            {rec.loading || !rec.data ? (
+            {rec.loading ? (
               <CenteredSpinner />
+            ) : rec.error || !rec.data ? (
+              <ErrorState message={rec.error} />
             ) : (
               <>
                 <p className="text-sm text-slate-600">{rec.data.summary}</p>

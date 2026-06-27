@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CheckCircle2, Leaf, MapPin, Route, Zap } from "lucide-react";
+import { CheckCircle2, Clock, Leaf, MapPin, Navigation, Route, Zap } from "lucide-react";
 import {
   Badge,
   Button,
@@ -16,9 +16,12 @@ import {
   Spinner,
 } from "@/components/ui";
 import { api } from "@/lib/services";
+import { RouteMap } from "@/components/maps/RouteMap";
+import { PlaceAutocomplete } from "@/components/forms/PlaceAutocomplete";
 import { formatCo2, formatVnd } from "@/lib/format";
 import type {
   CompareOption,
+  RouteDistance,
   TripPurpose,
   VehicleClass,
   VehicleProfileId,
@@ -30,44 +33,89 @@ const CLASSES: { value: VehicleClass; label: string }[] = [
   { value: "SUV_7", label: "7-seat / SUV" },
 ];
 
+// Goong travel mode hint based on vehicle class.
+const goongVehicle = (vc: VehicleClass) => (vc === "MOTORBIKE" ? "bike" : "car");
+
 export default function TripCalculatorPage() {
   const [origin, setOrigin] = useState("District 1, HCMC");
   const [destination, setDestination] = useState("Thu Duc, HCMC");
-  const [distance, setDistance] = useState(12.3);
   const [vehicleClass, setVehicleClass] = useState<VehicleClass>("MOTORBIKE");
   const [purpose, setPurpose] = useState<TripPurpose>("COMMUTE");
 
+  const [route, setRoute] = useState<RouteDistance | null>(null);
   const [options, setOptions] = useState<CompareOption[] | null>(null);
   const [selected, setSelected] = useState<VehicleProfileId | null>(null);
-  const [comparing, setComparing] = useState(false);
+
+  // Manual fallback when the distance provider (Goong) is not configured.
+  const [manualMode, setManualMode] = useState(false);
+  const [manualDistance, setManualDistance] = useState(12.3);
+
+  const [loading, setLoading] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [booking, setBooking] = useState(false);
   const [booked, setBooked] = useState<{ co2SavedKg: number; points: number } | null>(null);
 
-  async function handleCompare(e: React.FormEvent) {
-    e.preventDefault();
-    setComparing(true);
+  function reset() {
     setBooked(null);
     setSelected(null);
+    setNotice(null);
+  }
+
+  async function runCompare(distanceKm: number) {
+    const result = await api.compareVehicles(distanceKm, vehicleClass);
+    setOptions(result);
+    setSelected(result.find((o) => o.recommended)?.vehicleProfileId ?? null);
+  }
+
+  // Primary flow: Origin + Destination -> distance -> compare.
+  async function handleCalculateRoute(e: React.FormEvent) {
+    e.preventDefault();
+    reset();
+    setLoading(true);
     try {
-      const result = await api.compareVehicles(distance, vehicleClass);
-      setOptions(result);
-      setSelected(result.find((o) => o.recommended)?.vehicleProfileId ?? null);
+      const r = await api.getDistance(origin, destination, goongVehicle(vehicleClass));
+      setRoute(r);
+      await runCompare(r.distanceKm);
+    } catch {
+      // Provider not configured (or unreachable) -> let the user enter distance.
+      setRoute(null);
+      setManualMode(true);
+      setNotice(
+        "Route distance lookup isn't available (set GOONG_API_KEY on the backend). Enter the distance manually to continue.",
+      );
     } finally {
-      setComparing(false);
+      setLoading(false);
+    }
+  }
+
+  async function handleManualCompare(e: React.FormEvent) {
+    e.preventDefault();
+    reset();
+    setLoading(true);
+    try {
+      setRoute({
+        originName: origin,
+        destinationName: destination,
+        distanceKm: manualDistance,
+        provider: "manual",
+      });
+      await runCompare(manualDistance);
+    } finally {
+      setLoading(false);
     }
   }
 
   async function handleBook() {
-    if (!selected) return;
+    if (!selected || !route) return;
     setBooking(true);
     try {
       const { carbon } = await api.bookRide({
         originName: origin,
         destinationName: destination,
-        distanceKm: distance,
+        distanceKm: route.distanceKm,
         vehicleProfileId: selected,
         purpose,
-        priceVnd: Math.round(distance * 7500),
+        priceVnd: Math.round(route.distanceKm * 7500),
       });
       setBooked({
         co2SavedKg: carbon.co2SavedKg,
@@ -83,7 +131,7 @@ export default function TripCalculatorPage() {
       <PageHeading
         eyebrow="Trip"
         title="Trip Calculator"
-        subtitle="Compare petrol vs electric before you book — see the carbon you'll save."
+        subtitle="Enter origin and destination — we calculate the route distance and compare petrol vs electric."
         icon={Route}
       />
 
@@ -94,67 +142,122 @@ export default function TripCalculatorPage() {
             <CardTitle>Plan a trip</CardTitle>
           </CardHeader>
           <CardBody>
-            <form onSubmit={handleCompare} className="space-y-4">
-              <Field label="From" htmlFor="origin">
-                <Input id="origin" value={origin} onChange={(e) => setOrigin(e.target.value)} required />
-              </Field>
-              <Field label="To" htmlFor="destination">
-                <Input id="destination" value={destination} onChange={(e) => setDestination(e.target.value)} required />
-              </Field>
+            <form onSubmit={handleCalculateRoute} className="space-y-4">
+              <PlaceAutocomplete
+                id="origin"
+                label="From (origin)"
+                value={origin}
+                onChange={setOrigin}
+                placeholder="Search a pickup location…"
+              />
+              <PlaceAutocomplete
+                id="destination"
+                label="To (destination)"
+                value={destination}
+                onChange={setDestination}
+                placeholder="Search a destination…"
+              />
               <div className="grid grid-cols-2 gap-4">
-                <Field label="Distance (km)" htmlFor="distance">
-                  <Input
-                    id="distance"
-                    type="number"
-                    min={0.1}
-                    step={0.1}
-                    value={distance}
-                    onChange={(e) => setDistance(Number(e.target.value))}
-                    required
-                  />
-                </Field>
                 <Field label="Vehicle class" htmlFor="class">
-                  <Select
-                    id="class"
-                    value={vehicleClass}
-                    onChange={(e) => setVehicleClass(e.target.value as VehicleClass)}
-                  >
+                  <Select id="class" value={vehicleClass} onChange={(e) => setVehicleClass(e.target.value as VehicleClass)}>
                     {CLASSES.map((c) => (
                       <option key={c.value} value={c.value}>{c.label}</option>
                     ))}
                   </Select>
                 </Field>
+                <Field label="Purpose" htmlFor="purpose">
+                  <Select id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value as TripPurpose)}>
+                    <option value="COMMUTE">Commute</option>
+                    <option value="BUSINESS">Business</option>
+                    <option value="OTHER">Other</option>
+                  </Select>
+                </Field>
               </div>
-              <Field label="Purpose" htmlFor="purpose">
-                <Select id="purpose" value={purpose} onChange={(e) => setPurpose(e.target.value as TripPurpose)}>
-                  <option value="COMMUTE">Commute</option>
-                  <option value="BUSINESS">Business</option>
-                  <option value="OTHER">Other</option>
-                </Select>
-              </Field>
-              <Button type="submit" fullWidth loading={comparing}>
-                Compare options
+              <Button type="submit" fullWidth loading={loading && !manualMode}>
+                <Navigation className="size-4" /> Calculate route & compare
               </Button>
             </form>
 
-            <div className="mt-4 flex items-start gap-2 rounded-xl border border-green-100 bg-green-50/60 p-3 text-xs text-slate-600">
-              <MapPin className="mt-0.5 size-4 shrink-0 text-brand" />
-              The backend owns all carbon math — these numbers match your ESG report exactly.
-            </div>
+            {/* Manual fallback */}
+            {manualMode && (
+              <form onSubmit={handleManualCompare} className="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
+                <Field label="Distance (km)" htmlFor="manual-distance">
+                  <Input
+                    id="manual-distance"
+                    type="number"
+                    min={0.1}
+                    step={0.1}
+                    value={manualDistance}
+                    onChange={(e) => setManualDistance(Number(e.target.value))}
+                    required
+                  />
+                </Field>
+                <Button type="submit" variant="outline" fullWidth loading={loading}>
+                  Compare with this distance
+                </Button>
+              </form>
+            )}
+
+            {notice && (
+              <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-800">
+                <MapPin className="mt-0.5 size-4 shrink-0" />
+                {notice}
+              </p>
+            )}
           </CardBody>
         </Card>
 
         {/* Results */}
         <div className="space-y-4 lg:col-span-3">
-          {!options && !comparing && (
+          {/* Route summary */}
+          {route && (
             <Card>
-              <CardBody className="py-16 text-center text-slate-400">
-                Enter a trip and compare to see CO₂ savings per vehicle.
+              <CardBody className="flex flex-wrap items-center gap-x-8 gap-y-2">
+                <div>
+                  <p className="text-xs text-slate-400">Route</p>
+                  <p className="font-semibold text-slate-800">
+                    {route.originName} → {route.destinationName}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-xs text-slate-400">Distance</p>
+                  <p className="text-lg font-bold text-slate-900">{route.distanceKm} km</p>
+                </div>
+                {route.durationMinutes != null && (
+                  <div>
+                    <p className="text-xs text-slate-400">Duration</p>
+                    <p className="flex items-center gap-1 font-semibold text-slate-700">
+                      <Clock className="size-4" /> {route.durationMinutes} min
+                    </p>
+                  </div>
+                )}
+                {route.provider && (
+                  <Badge tone="neutral" className="ml-auto">
+                    {route.provider}
+                  </Badge>
+                )}
               </CardBody>
             </Card>
           )}
 
-          {comparing && (
+          {/* Goong map with the predicted route */}
+          {route && (
+            <Card>
+              <CardBody className="p-2">
+                <RouteMap route={route} />
+              </CardBody>
+            </Card>
+          )}
+
+          {!options && !loading && (
+            <Card>
+              <CardBody className="py-16 text-center text-slate-400">
+                Enter origin and destination, then calculate to compare CO₂ savings.
+              </CardBody>
+            </Card>
+          )}
+
+          {loading && (
             <Card>
               <CardBody className="flex justify-center py-16">
                 <Spinner />
@@ -194,7 +297,7 @@ export default function TripCalculatorPage() {
             );
           })}
 
-          {options && selected && (
+          {options && selected && route && (
             <Card>
               <CardBody className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
                 {booked ? (
@@ -206,7 +309,7 @@ export default function TripCalculatorPage() {
                   </div>
                 ) : (
                   <p className="text-sm text-slate-500">
-                    Estimated fare {formatVnd(Math.round(distance * 7500))}
+                    Estimated fare {formatVnd(Math.round(route.distanceKm * 7500))}
                   </p>
                 )}
                 <Button onClick={handleBook} loading={booking} disabled={!!booked}>

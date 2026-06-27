@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
   CenteredSpinner,
+  ErrorState,
   PageHeading,
   Table,
   TBody,
@@ -36,8 +37,11 @@ export default function EsgReportPage() {
     URL.revokeObjectURL(url);
   }
 
-  if (report.loading || !report.data) {
+  if (report.loading) {
     return <CenteredSpinner label="Generating ESG report…" />;
+  }
+  if (report.error || !report.data) {
+    return <ErrorState message={report.error} />;
   }
 
   const { summary, methodology, vehicleProfiles, period } = report.data;

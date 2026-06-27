@@ -89,7 +89,7 @@ export const COMPANY_DASHBOARD: CompanyDashboard = {
   ],
 };
 
-export const LEADERBOARD: LeaderboardEntry[] = [
+export const LEADERBOARD: Omit<LeaderboardEntry, "greenScore">[] = [
   { rank: 1, userId: "usr_101", name: "Le Hoang Anh", department: "Sales", savedCo2Kg: 52.0, greenPoints: 5200, evTrips: 41, totalTrips: 48, evRate: 85.4 },
   { rank: 2, userId: "usr_102", name: "Pham Quoc Bao", department: "Operations", savedCo2Kg: 48.0, greenPoints: 4800, evTrips: 37, totalTrips: 46, evRate: 80.4 },
   { rank: 3, userId: "usr_103", name: "Vo Thi Mai", department: "Engineering", savedCo2Kg: 44.5, greenPoints: 4450, evTrips: 35, totalTrips: 44, evRate: 79.5 },

@@ -14,5 +14,5 @@ export type { StatCardProps, StatTone } from "./StatCard";
 export { Avatar } from "./Avatar";
 export { Table, THead, TH, TBody, TR, TD } from "./Table";
 export { Field, Input, Select } from "./Field";
-export { Spinner, Skeleton, CenteredSpinner, EmptyState } from "./Feedback";
+export { Spinner, Skeleton, CenteredSpinner, EmptyState, ErrorState } from "./Feedback";
 export { PageHeading } from "./PageHeading";

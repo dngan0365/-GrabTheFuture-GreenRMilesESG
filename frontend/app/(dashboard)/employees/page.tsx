@@ -1,12 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Trophy } from "lucide-react";
 import {
   Avatar,
   Badge,
   Card,
   CenteredSpinner,
+  ErrorState,
   PageHeading,
   Select,
   Table,
@@ -18,23 +19,26 @@ import {
 } from "@/components/ui";
 import { api } from "@/lib/services";
 import { useAsync } from "@/lib/use-async";
-import { formatCo2, formatNumber, formatPercent } from "@/lib/format";
+import { formatNumber } from "@/lib/format";
 import { useAuth } from "@/lib/auth/auth-context";
-import type { LeaderboardMetric } from "@/types";
 
-const METRICS: { value: LeaderboardMetric; label: string }[] = [
-  { value: "savedCo2Kg", label: "CO₂ saved" },
-  { value: "greenPoints", label: "Green points" },
-  { value: "evRate", label: "EV rate" },
-  { value: "evTrips", label: "EV trips" },
-];
+// The backend leaderboard exposes greenPoints + greenScore (not per-user CO₂),
+// so we rank on those and sort client-side.
+type SortKey = "greenPoints" | "greenScore";
 
-const RANK_TONE = ["", "🥇", "🥈", "🥉"];
+const RANK_BADGE = ["", "🥇", "🥈", "🥉"];
 
 export default function LeaderboardPage() {
   const { user } = useAuth();
-  const [metric, setMetric] = useState<LeaderboardMetric>("savedCo2Kg");
-  const board = useAsync(() => api.getLeaderboard(metric), [metric]);
+  const [sortKey, setSortKey] = useState<SortKey>("greenPoints");
+  const board = useAsync(() => api.getLeaderboard(), []);
+
+  const ranked = useMemo(() => {
+    const items = board.data?.items ?? [];
+    return [...items]
+      .sort((a, b) => b[sortKey] - a[sortKey])
+      .map((e, i) => ({ ...e, rank: i + 1 }));
+  }, [board.data, sortKey]);
 
   return (
     <>
@@ -44,35 +48,38 @@ export default function LeaderboardPage() {
         subtitle="Top sustainable commuters this month."
         icon={Trophy}
         actions={
-          <Select value={metric} onChange={(e) => setMetric(e.target.value as LeaderboardMetric)} className="w-44">
-            {METRICS.map((m) => (
-              <option key={m.value} value={m.value}>{m.label}</option>
-            ))}
+          <Select
+            value={sortKey}
+            onChange={(e) => setSortKey(e.target.value as SortKey)}
+            className="w-44"
+          >
+            <option value="greenPoints">Green points</option>
+            <option value="greenScore">Green score</option>
           </Select>
         }
       />
 
       <Card>
-        {board.loading || !board.data ? (
+        {board.loading ? (
           <CenteredSpinner label="Ranking commuters…" />
+        ) : board.error ? (
+          <ErrorState message={board.error} />
         ) : (
           <Table>
             <THead>
               <TH>Rank</TH>
               <TH>Employee</TH>
-              <TH>Department</TH>
-              <TH>CO₂ saved</TH>
               <TH>Green points</TH>
-              <TH>EV rate</TH>
+              <TH>Green score</TH>
             </THead>
             <TBody>
-              {board.data.items.map((e) => {
+              {ranked.map((e) => {
                 const isMe = e.userId === user?.id;
                 return (
                   <TR key={e.userId} className={isMe ? "bg-green-50/60" : undefined}>
                     <TD>
                       <span className="font-bold text-slate-700">
-                        {RANK_TONE[e.rank] ?? `#${e.rank}`}
+                        {RANK_BADGE[e.rank] ?? `#${e.rank}`}
                       </span>
                     </TD>
                     <TD>
@@ -84,10 +91,10 @@ export default function LeaderboardPage() {
                         </span>
                       </div>
                     </TD>
-                    <TD>{e.department ?? "—"}</TD>
-                    <TD className="font-bold text-green-700">{formatCo2(e.savedCo2Kg)}</TD>
-                    <TD>{formatNumber(e.greenPoints)}</TD>
-                    <TD>{formatPercent(e.evRate)}</TD>
+                    <TD className="font-bold text-green-700">
+                      {formatNumber(e.greenPoints)}
+                    </TD>
+                    <TD>{formatNumber(e.greenScore)}</TD>
                   </TR>
                 );
               })}

@@ -73,9 +73,10 @@ export async function request<T>(
   const json = text ? JSON.parse(text) : null;
 
   if (!res.ok) {
+    const detail = json?.detail;
     const message =
       json?.error?.message ??
-      json?.detail ??
+      (detail && typeof detail === "object" ? detail.message : detail) ??
       json?.message ??
       `Request failed (${res.status})`;
     throw new ApiError(

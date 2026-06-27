@@ -21,12 +21,14 @@ import type {
   LeaderboardMetric,
   Language,
   MonthlyPrediction,
+  PlacePrediction,
   Recommendation,
   Redemption,
   Reward,
   RewardCatalog,
   Ride,
   RideReward,
+  RouteDistance,
   TripPurpose,
   User,
   VehicleClass,
@@ -63,6 +65,12 @@ export interface GreenMilesApi {
 
   // vehicles & carbon
   getVehicleProfiles(): Promise<VehicleProfile[]>;
+  searchPlaces(input: string): Promise<PlacePrediction[]>;
+  getDistance(
+    originName: string,
+    destinationName: string,
+    vehicle?: string,
+  ): Promise<RouteDistance>;
   calculateCarbon(
     distanceKm: number,
     vehicleProfileId: VehicleProfileId,

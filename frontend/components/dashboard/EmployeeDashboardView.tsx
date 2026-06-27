@@ -15,6 +15,7 @@ import {
   CardHeader,
   CardTitle,
   CenteredSpinner,
+  ErrorState,
   PageHeading,
   StatCard,
   Table,
@@ -39,7 +40,8 @@ export function EmployeeDashboardView({ name }: { name: string }) {
   const rides = useAsync(() => api.getRideHistory(), []);
   const rec = useAsync(() => api.getRecommendation("employee", "en"), []);
 
-  if (dash.loading || !dash.data) return <CenteredSpinner label="Loading dashboard…" />;
+  if (dash.loading) return <CenteredSpinner label="Loading dashboard…" />;
+  if (dash.error || !dash.data) return <ErrorState message={dash.error} />;
 
   const { summary, tripStats } = dash.data;
 
@@ -122,8 +124,10 @@ export function EmployeeDashboardView({ name }: { name: string }) {
             </CardTitle>
           </CardHeader>
           <CardBody>
-            {rec.loading || !rec.data ? (
+            {rec.loading ? (
               <CenteredSpinner />
+            ) : rec.error || !rec.data ? (
+              <ErrorState message={rec.error} />
             ) : (
               <>
                 <p className="text-sm text-slate-600">{rec.data.summary}</p>

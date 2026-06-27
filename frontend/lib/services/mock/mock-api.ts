@@ -96,6 +96,62 @@ export const mockApi: GreenMilesApi = {
     return delay(VEHICLE_PROFILE_LIST);
   },
 
+  async getDistance(
+    originName: string,
+    destinationName: string,
+  ): Promise<import("@/types").RouteDistance> {
+    // Deterministic pseudo-distance from the two names (8–22 km) so the mock
+    // behaves consistently without a maps provider.
+    const seed = `${originName}|${destinationName}`
+      .split("")
+      .reduce((acc, ch) => acc + ch.charCodeAt(0), 0);
+    const distanceKm = Number((8 + (seed % 140) / 10).toFixed(1));
+    // Deterministic HCMC-area coordinates so the map can render in mock mode.
+    const originLat = 10.776 + ((seed % 30) - 15) / 1000;
+    const originLng = 106.7 + ((seed % 24) - 12) / 1000;
+    const destLat = 10.79 + ((seed % 50) - 25) / 1000;
+    const destLng = 106.72 + ((seed % 40) - 20) / 1000;
+    return delay({
+      originName,
+      destinationName,
+      distanceKm,
+      durationMinutes: Math.max(5, Math.round((distanceKm / 24) * 60)),
+      provider: "mock",
+      originLat,
+      originLng,
+      destLat,
+      destLng,
+      overviewPolyline: null,
+    });
+  },
+
+  async searchPlaces(
+    input: string,
+  ): Promise<import("@/types").PlacePrediction[]> {
+    const q = input.trim().toLowerCase();
+    if (q.length < 2) return [];
+    const PLACES = [
+      "District 1, Ho Chi Minh City",
+      "District 3, Ho Chi Minh City",
+      "District 7, Ho Chi Minh City",
+      "Thu Duc City, Ho Chi Minh City",
+      "Binh Thanh District, Ho Chi Minh City",
+      "Tan Binh District, Ho Chi Minh City",
+      "Phu Nhuan District, Ho Chi Minh City",
+      "Landmark 81, Binh Thanh, HCMC",
+      "Ben Thanh Market, District 1, HCMC",
+      "Tan Son Nhat Airport, Tan Binh, HCMC",
+      "Crescent Mall, District 7, HCMC",
+      "Vincom Thu Duc, Thu Duc, HCMC",
+    ];
+    return delay(
+      PLACES.filter((p) => p.toLowerCase().includes(q))
+        .slice(0, 6)
+        .map((description, i) => ({ description, placeId: `mock_${i}` })),
+      150,
+    );
+  },
+
   async calculateCarbon(
     distanceKm: number,
     vehicleProfileId: VehicleProfileId,
@@ -183,7 +239,7 @@ export const mockApi: GreenMilesApi = {
   ): Promise<Leaderboard> {
     const items = [...LEADERBOARD]
       .sort((a, b) => metricValue(b, metric) - metricValue(a, metric))
-      .map((e, i) => ({ ...e, rank: i + 1 }));
+      .map((e, i) => ({ ...e, greenScore: Math.round(e.greenPoints / 10), rank: i + 1 }));
     const current = items.find((e) => e.userId === "usr_001");
     return delay({
       metric,
@@ -201,9 +257,23 @@ export const mockApi: GreenMilesApi = {
   async getEmissionAnalytics(
     groupBy: EmissionAnalytics["groupBy"],
   ): Promise<EmissionAnalytics> {
-    const items =
-      groupBy === "department" ? DEPARTMENT_EMISSION : DAILY_EMISSION;
-    return delay({ groupBy, items });
+    if (groupBy === "department") {
+      return delay({ groupBy, items: DEPARTMENT_EMISSION });
+    }
+    // 14-day forecast continuing the last observed saved value with mild growth.
+    const last = DAILY_EMISSION[DAILY_EMISSION.length - 1];
+    const lastDate = new Date(last.label);
+    const forecast = Array.from({ length: 14 }).map((_, i) => {
+      const d = new Date(lastDate);
+      d.setDate(d.getDate() + i + 1);
+      const weekend = d.getDay() === 0 || d.getDay() === 6;
+      const base = weekend ? last.savedCo2Kg * 0.4 : last.savedCo2Kg;
+      return {
+        label: d.toISOString().slice(0, 10),
+        savedCo2Kg: Number((base * (1 + i * 0.01)).toFixed(1)),
+      };
+    });
+    return delay({ groupBy, items: DAILY_EMISSION, forecast });
   },
 
   async getMonthlyPrediction(range?: DateRange): Promise<MonthlyPrediction> {

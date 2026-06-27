@@ -17,17 +17,20 @@ import type {
   CompareOption,
   DateRange,
   EmissionAnalytics,
+  EmissionPoint,
   EmployeeDashboard,
   EsgReport,
   Language,
   Leaderboard,
   LeaderboardMetric,
   MonthlyPrediction,
+  PlacePrediction,
   Recommendation,
   Redemption,
   RewardCatalog,
   Ride,
   RideReward,
+  RouteDistance,
   User,
   VehicleClass,
   VehicleProfile,
@@ -94,6 +97,26 @@ export const apiClient: GreenMilesApi = {
   async getVehicleProfiles(): Promise<VehicleProfile[]> {
     const res = await request<Envelope<VehicleProfile>>("/carbon/vehicles");
     return res.items;
+  },
+
+  getDistance(
+    originName: string,
+    destinationName: string,
+    vehicle = "car",
+  ): Promise<RouteDistance> {
+    return request<RouteDistance>("/carbon/distance", {
+      method: "POST",
+      body: { originName, destinationName, vehicle },
+    });
+  },
+
+  async searchPlaces(input: string): Promise<PlacePrediction[]> {
+    if (input.trim().length < 2) return [];
+    const res = await request<{ predictions: PlacePrediction[] }>(
+      "/carbon/places/autocomplete",
+      { query: { input } },
+    );
+    return res.predictions;
   },
 
   async calculateCarbon(
@@ -234,9 +257,11 @@ export const apiClient: GreenMilesApi = {
       userId: e.userId,
       name: e.name,
       department: undefined,
-      // Backend leaderboard only exposes points/score; other metrics default.
+      // Backend leaderboard exposes points + score; CO2/EV metrics are not
+      // available per-user, so they default to 0 and are not shown.
       savedCo2Kg: 0,
       greenPoints: e.greenPoints,
+      greenScore: e.greenScore,
       evTrips: 0,
       totalTrips: 0,
       evRate: 0,
@@ -249,23 +274,47 @@ export const apiClient: GreenMilesApi = {
     groupBy: EmissionAnalytics["groupBy"],
     range?: DateRange,
   ): Promise<EmissionAnalytics> {
-    // Only a daily trends endpoint exists; other groupings return empty.
+    if (groupBy === "department") {
+      const res = await request<{ items: (EmissionPoint & { evRate: number })[] }>(
+        "/analytics/by-department",
+        { query: rangeQuery(range) },
+      );
+      // Backend returns evRate as a 0..1 fraction; the UI expects a percentage.
+      return {
+        groupBy,
+        items: res.items.map((p) => ({ ...p, evRate: round(p.evRate * 100, 1) })),
+      };
+    }
     if (groupBy !== "day") return { groupBy, items: [] };
+
     const res = await request<{
-      items: { date: string; actualCo2Kg: number; co2SavedKg: number; rideCount: number }[];
+      items: {
+        date: string;
+        actualCo2Kg: number;
+        co2SavedKg: number;
+        rideCount: number;
+        evTrips: number;
+        evRate: number;
+      }[];
+      forecast?: { date: string; savedCo2Kg: number }[];
     }>("/analytics/trends", { query: rangeQuery(range) });
+
     return {
       groupBy,
       items: res.items.map((p) => ({
         label: p.date,
         totalTrips: p.rideCount,
-        evTrips: 0,
-        petrolTrips: 0,
+        evTrips: p.evTrips,
+        petrolTrips: p.rideCount - p.evTrips,
         totalDistanceKm: 0,
         actualCo2Kg: p.actualCo2Kg,
         baselineCo2Kg: round(p.actualCo2Kg + p.co2SavedKg),
         savedCo2Kg: p.co2SavedKg,
-        evRate: 0,
+        evRate: round(p.evRate * 100, 1),
+      })),
+      forecast: (res.forecast ?? []).map((f) => ({
+        label: f.date,
+        savedCo2Kg: f.savedCo2Kg,
       })),
     };
   },
@@ -358,7 +407,25 @@ export const apiClient: GreenMilesApi = {
   async redeemReward(
     rewardId: string,
   ): Promise<{ redemption: Redemption; remainingGreenPoints: number }> {
-    return request("/rewards/redeem", { method: "POST", body: { rewardId } });
+    // Backend returns a FLAT payload (no `redemption` wrapper).
+    const res = await request<{
+      redemptionId: string;
+      rewardId: string;
+      greenPointsSpent: number;
+      remainingGreenPoints: number;
+      voucherCode: string | null;
+    }>("/rewards/redeem", { method: "POST", body: { rewardId } });
+    return {
+      redemption: {
+        id: res.redemptionId,
+        rewardId: res.rewardId,
+        rewardName: "",
+        greenPointsSpent: res.greenPointsSpent,
+        voucherCode: res.voucherCode ?? "",
+        redeemedAt: new Date().toISOString(),
+      },
+      remainingGreenPoints: res.remainingGreenPoints,
+    };
   },
 
   // ---------- ESG ----------

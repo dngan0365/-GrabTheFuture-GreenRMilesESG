@@ -2,7 +2,7 @@
 
 import {
   Building2,
-  Coins,
+  Droplets,
   Gauge,
   Leaf,
   TrendingUp,
@@ -16,17 +16,18 @@ import {
   CardHeader,
   CardTitle,
   CenteredSpinner,
+  ErrorState,
   PageHeading,
   StatCard,
 } from "@/components/ui";
-import { SavedCo2Chart } from "@/components/charts/EmissionChart";
+import { SavedCo2LineChart } from "@/components/charts/EmissionChart";
 import { api } from "@/lib/services";
 import { useAsync } from "@/lib/use-async";
 import {
   formatCo2,
+  formatLiters,
   formatNumber,
   formatPercent,
-  formatVnd,
 } from "@/lib/format";
 
 export function CompanyDashboardView({ companyName }: { companyName: string }) {
@@ -34,7 +35,8 @@ export function CompanyDashboardView({ companyName }: { companyName: string }) {
   const series = useAsync(() => api.getEmissionAnalytics("day"), []);
   const prediction = useAsync(() => api.getMonthlyPrediction(), []);
 
-  if (dash.loading || !dash.data) return <CenteredSpinner label="Loading dashboard…" />;
+  if (dash.loading) return <CenteredSpinner label="Loading dashboard…" />;
+  if (dash.error || !dash.data) return <ErrorState message={dash.error} />;
   const s = dash.data.summary;
 
   return (
@@ -50,19 +52,24 @@ export function CompanyDashboardView({ companyName }: { companyName: string }) {
         <StatCard index={0} label="CO₂ saved" value={formatCo2(s.savedEmissionKg)} icon={Leaf} tone="success" deltaPercent={18} />
         <StatCard index={1} label="EV adoption" value={formatPercent(s.evRate)} icon={Gauge} tone="primary" />
         <StatCard index={2} label="Employees" value={formatNumber(s.employees)} icon={Users} tone="warning" />
-        <StatCard index={3} label="Money saved" value={formatVnd(s.moneySavedVnd)} icon={Coins} tone="success" />
+        <StatCard index={3} label="Fuel saved" value={formatLiters(s.fuelSavedLiters)} icon={Droplets} tone="success" hint="Petrol avoided vs baseline" />
       </div>
 
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Daily CO₂ saved</CardTitle>
+            <CardTitle>Daily CO₂ saved — history & forecast</CardTitle>
           </CardHeader>
           <CardBody>
-            {series.loading || !series.data ? (
+            {series.loading ? (
               <CenteredSpinner />
+            ) : series.error || !series.data ? (
+              <ErrorState message={series.error} />
             ) : (
-              <SavedCo2Chart data={series.data.items} />
+              <SavedCo2LineChart
+                history={series.data.items}
+                forecast={series.data.forecast}
+              />
             )}
           </CardBody>
         </Card>
@@ -75,8 +82,10 @@ export function CompanyDashboardView({ companyName }: { companyName: string }) {
             </CardTitle>
           </CardHeader>
           <CardBody>
-            {prediction.loading || !prediction.data ? (
+            {prediction.loading ? (
               <CenteredSpinner />
+            ) : prediction.error || !prediction.data ? (
+              <ErrorState message={prediction.error} />
             ) : (
               <div className="space-y-4">
                 <div>

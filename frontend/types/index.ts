@@ -144,6 +144,7 @@ export interface LeaderboardEntry {
   department?: string;
   savedCo2Kg: number;
   greenPoints: number;
+  greenScore: number;
   evTrips: number;
   totalTrips: number;
   evRate: number;
@@ -206,9 +207,16 @@ export interface EmissionPoint {
   evRate: number;
 }
 
+export interface ForecastPoint {
+  label: string;
+  savedCo2Kg: number;
+}
+
 export interface EmissionAnalytics {
   groupBy: AnalyticsGroupBy;
   items: EmissionPoint[];
+  /** Regression-predicted daily CO₂ saved (future), for the dashed chart line. */
+  forecast?: ForecastPoint[];
 }
 
 // ---------- predictions ----------
@@ -306,4 +314,24 @@ export interface EsgReport {
 export interface DateRange {
   from: string;
   to: string;
+}
+
+// ---------- route distance (Goong) ----------
+export interface PlacePrediction {
+  description: string;
+  placeId: string;
+}
+
+export interface RouteDistance {
+  originName: string;
+  destinationName: string;
+  distanceKm: number;
+  durationMinutes?: number;
+  provider?: string;
+  originLat?: number | null;
+  originLng?: number | null;
+  destLat?: number | null;
+  destLng?: number | null;
+  /** Encoded polyline of the route (Goong/Google algorithm). */
+  overviewPolyline?: string | null;
 }

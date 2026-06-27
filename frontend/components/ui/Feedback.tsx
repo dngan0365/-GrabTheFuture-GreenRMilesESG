@@ -45,3 +45,31 @@ export function EmptyState({
     </div>
   );
 }
+
+export function ErrorState({
+  message,
+  onRetry,
+}: {
+  message?: string | null;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="flex min-h-48 flex-col items-center justify-center gap-3 py-10 text-center">
+      <div className="grid size-11 place-items-center rounded-full bg-red-50 text-red-600">
+        <span className="text-xl font-bold">!</span>
+      </div>
+      <p className="font-semibold text-slate-700">Couldn’t load this data</p>
+      <p className="max-w-sm text-sm text-slate-400">
+        {message ?? "Please check your connection and try again."}
+      </p>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          className="rounded-lg bg-slate-100 px-3 py-1.5 text-sm font-medium text-slate-600 hover:bg-slate-200"
+        >
+          Retry
+        </button>
+      )}
+    </div>
+  );
+}
