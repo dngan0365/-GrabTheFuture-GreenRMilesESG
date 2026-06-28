@@ -59,8 +59,8 @@ CREATE TABLE users (
   role            TEXT        NOT NULL
                     CHECK (role IN ('EMPLOYEE', 'COMPANY_ADMIN')),
 
-  green_points    INTEGER     NOT NULL DEFAULT 0,
-  green_score     INTEGER     NOT NULL DEFAULT 0,
+  green_points    INTEGER     NOT NULL DEFAULT 0 CHECK (green_points >= 0),
+  green_score     INTEGER     NOT NULL DEFAULT 0 CHECK (green_score >= 0),
 
   status          TEXT        NOT NULL DEFAULT 'ACTIVE'
                     CHECK (status IN ('ACTIVE', 'INACTIVE')),
