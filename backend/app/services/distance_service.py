@@ -13,11 +13,6 @@ class RouteDistance:
     distance_km: float
     duration_minutes: int | None
     provider: str
-    origin_lat: float | None = None
-    origin_lng: float | None = None
-    dest_lat: float | None = None
-    dest_lng: float | None = None
-    overview_polyline: str | None = None
 
 
 async def _goong_geocode(client: httpx.AsyncClient, address: str) -> tuple[float, float]:
@@ -81,7 +76,6 @@ async def get_route_distance(origin_name: str, destination_name: str, vehicle: s
     leg = (routes[0].get("legs") or [{}])[0]
     distance_m = float((leg.get("distance") or {}).get("value", 0))
     duration_s = int((leg.get("duration") or {}).get("value", 0))
-    overview = (routes[0].get("overview_polyline") or {}).get("points")
 
     return RouteDistance(
         origin_name=origin_name,
@@ -89,39 +83,4 @@ async def get_route_distance(origin_name: str, destination_name: str, vehicle: s
         distance_km=round(distance_m / 1000, 3),
         duration_minutes=round(duration_s / 60) if duration_s else None,
         provider="GOONG",
-        origin_lat=origin_lat,
-        origin_lng=origin_lng,
-        dest_lat=dest_lat,
-        dest_lng=dest_lng,
-        overview_polyline=overview,
     )
-
-
-async def autocomplete_places(input_text: str, limit: int = 6) -> list[dict]:
-    """Proxy Goong Place AutoComplete so the REST key stays server-side.
-
-    Returns a list of {description, placeId}. If the provider is not configured
-    or the call fails, returns an empty list so the UI can fall back to free
-    text entry instead of erroring.
-    """
-    query = (input_text or "").strip()
-    if not settings.GOONG_API_KEY or len(query) < 2:
-        return []
-
-    try:
-        async with httpx.AsyncClient(timeout=8) as client:
-            response = await client.get(
-                "https://rsapi.goong.io/Place/AutoComplete",
-                params={"api_key": settings.GOONG_API_KEY, "input": query, "limit": limit},
-            )
-            response.raise_for_status()
-            data = response.json()
-    except httpx.HTTPError:
-        return []
-
-    predictions = data.get("predictions") or []
-    return [
-        {"description": p.get("description", ""), "placeId": p.get("place_id", "")}
-        for p in predictions
-        if p.get("description")
-    ][:limit]

@@ -1,104 +1,26 @@
 @import "tailwindcss";
 
-/* =============================================================
-   GreenMiles ESG — design tokens (Tailwind v4 @theme)
-   Palette ported from the template's carbon-esg.css. Most values
-   map 1:1 to Tailwind's default palette; we expose brand aliases
-   and semantic surface tokens so components stay declarative.
-   ============================================================= */
-@theme {
-  /* Brand */
-  --color-brand: #16a34a; /* green-600  */
-  --color-brand-dark: #15803d; /* green-700  */
-  --color-brand-light: #22c55e; /* green-500  */
-  --color-brand-teal: #0f766e; /* teal-700   */
-
-  /* Semantic surfaces (light) */
-  --color-surface: #ffffff;
-  --color-surface-soft: #f6f9fc;
-  --color-border-subtle: #e6edf5;
-  --color-ink: #1f2937; /* slate-800 */
-  --color-muted: #64748b; /* slate-500 */
-
-  /* Fonts (wired in layout.tsx) */
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-
-  /* Elevation */
-  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.04), 0 8px 24px rgba(15, 23, 42, 0.05);
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
 }
 
-/* ---------- base ---------- */
-html {
-  -webkit-text-size-adjust: 100%;
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
 }
 
 body {
-  background: var(--color-surface-soft);
-  color: var(--color-ink);
-  font-family: var(--font-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
-}
-
-/* Thin, unobtrusive scrollbars to match the dashboard aesthetic */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: #cbd5e1 transparent;
-}
-*::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
-}
-*::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 999px;
-}
-
-/* ---------- reusable brand utilities ---------- */
-@utility brand-gradient {
-  background-image: linear-gradient(135deg, #16a34a, #0f766e);
-}
-
-@utility brand-gradient-bar {
-  background-image: linear-gradient(180deg, #22c55e, #0f766e);
-}
-
-/* ---------- entrance animations (ported from carbon-esg.css) ---------- */
-@keyframes carbonFadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(12px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-@keyframes carbonGrowBar {
-  from {
-    transform: scaleY(0.12);
-    opacity: 0.4;
-  }
-  to {
-    transform: scaleY(1);
-    opacity: 1;
-  }
-}
-
-@utility animate-fade-up {
-  animation: carbonFadeUp 0.48s ease both;
-  animation-delay: var(--delay, 0ms);
-}
-
-@utility animate-grow-bar {
-  transform-origin: bottom;
-  animation: carbonGrowBar 0.72s ease both;
-  animation-delay: var(--delay, 0ms);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-fade-up,
-  .animate-grow-bar {
-    animation: none;
-  }
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
 }
