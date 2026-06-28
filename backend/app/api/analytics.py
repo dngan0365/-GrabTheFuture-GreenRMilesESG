@@ -40,16 +40,6 @@ async def trends(
     return await analytics_service.trends(db, current_user, from_date, to_date)
 
 
-@router.get("/by-department")
-async def by_department(
-    from_date: date | None = None,
-    to_date: date | None = None,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    return await analytics_service.emission_by_department(db, current_user, from_date, to_date)
-
-
 @router.post("/predictions/month-end")
 async def month_end_prediction(
     current_user: User = Depends(get_current_user),
