@@ -97,6 +97,9 @@ Base path: `/api/v1`.
 
 ## Architecture
 
+![Architecture Image](./assets/img/architecture.png)
+<!-- High-level flow: -->
+<!-- 
 ```text
 Next.js (typed service layer: mock ⇄ live API)
    │  HTTP / JSON
@@ -105,7 +108,7 @@ Backend API (FastAPI routers)
 SQLAlchemy async ORM
    │
 PostgreSQL
-```
+``` -->
 
 All dashboards, leaderboards, ESG, and analytics are derived from the `rides` table — no separate aggregate tables.
 
