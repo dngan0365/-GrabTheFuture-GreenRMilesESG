@@ -1,4 +1,5 @@
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 from typing import Optional
 
 
@@ -24,6 +25,25 @@ class Settings(BaseSettings):
 
     # External APIs
     GOONG_API_KEY: Optional[str] = None  # for distance calculation
+
+    @field_validator("DATABASE_URL")
+    @classmethod
+    def _force_asyncpg_driver(cls, v: str) -> str:
+        """Railway (and others) provide a libpq-style URL like
+        `postgresql://...` or `postgres://...`. SQLAlchemy's async engine
+        needs the asyncpg driver, so normalize the scheme here."""
+        if v.startswith("postgres://"):
+            v = "postgresql://" + v[len("postgres://"):]
+        if v.startswith("postgresql://"):
+            v = "postgresql+asyncpg://" + v[len("postgresql://"):]
+        # asyncpg rejects libpq's `sslmode` query param; drop it if present.
+        if "sslmode=" in v:
+            from urllib.parse import urlsplit, urlunsplit, parse_qsl, urlencode
+
+            parts = urlsplit(v)
+            query = [(k, val) for k, val in parse_qsl(parts.query) if k != "sslmode"]
+            v = urlunsplit(parts._replace(query=urlencode(query)))
+        return v
 
     class Config:
         env_file = ".env"
